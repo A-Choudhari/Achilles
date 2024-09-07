@@ -17,6 +17,7 @@ import {
   Button,
 } from "reactstrap";
 import LogoWhite from "../../assets/images/logos/xtremelogowhite.svg";
+import axios from "axios";
 import user1 from "../../assets/images/users/user1.jpg";
 
 const Header = ({ showMobmenu }) => {
@@ -31,6 +32,40 @@ const Header = ({ showMobmenu }) => {
   const { data: session, status } = useSession();
   console.log("Session:", session);
   const loading = status === "loading";
+
+  async function resyncEmail() {
+    if (!session) {
+      // Handle the case where there is no session (user not authenticated)
+      console.log("not authenticated");
+      setError("User is not authenticated");
+      setLoading(false);
+      return;
+    }
+    try {
+      const response1 = await fetch('http://127.0.0.1:8000/api/csrf_token');
+      const data = await response1.json();
+      console.log("CSRF Token: ", data.csrfToken);
+      const response = await axios.post(
+        "http://127.0.0.1:8000/api/resyncHistory",
+        {
+          headers: {
+            'X-CSRFToken': data.csrfToken,
+            'Authorization': `Bearer ${session.user.email}`,
+          }
+        },
+        {
+          "username": session.user.email
+        }
+      );
+
+      const receivedData = response.data.data;
+      
+      console.log("Data received: ", receivedData);
+      // Process the received data and update tableData
+    } catch(error) {
+      console.log(error);
+    }
+  }  
 
   return (
     <Navbar color="primary" dark expand="md">
@@ -100,6 +135,9 @@ const Header = ({ showMobmenu }) => {
             <DropdownItem><Link style={{ color: 'inherit', textDecoration: 'none' }} href="/profile">
             My Account
             </Link></DropdownItem>
+            <DropdownItem><Button style={{ color: 'blue', backgroundColor:"white", border: 'none', textDecoration: 'underline', cursor: 'pointer', textDecoration: 'none' }} onClick={resyncEmail}>
+            Sync History
+            </Button></DropdownItem>
             <DropdownItem divider />
             <DropdownItem onClick={() => signOut()}>Logout</DropdownItem>
             </>

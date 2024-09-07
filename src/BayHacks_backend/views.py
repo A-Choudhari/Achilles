@@ -17,10 +17,12 @@ from email.mime.text import MIMEText
 from django.utils.decorators import method_decorator
 from django.middleware.csrf import get_token
 from datetime import datetime, timezone
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponseBadRequest
 import pytz
 from openai import OpenAI
 from rest_framework.authentication import SessionAuthentication, BasicAuthentication, TokenAuthentication
+from .web_scrape import cookie_serve_scan, ssl_scan
+
 
 class CustomGoogleOAuth2Adapter(GoogleOAuth2Adapter):
   def complete_login(self, request, app, token, response, **kwargs):
@@ -126,8 +128,8 @@ class GetCookies(View):
                       cookie_dict["expirationDate"] = cookie["expirationDate"],
                   value.append(cookie_dict)
                 json_data = json.dumps(value)
-                grade = "A-"
-                cookie_info = "20"
+                grade = ssl_scan(name)
+                cookie_info = cookie_serve_scan(name)
                 client = OpenAI(api_key="")
 
                 completion = client.chat.completions.create(
@@ -157,9 +159,9 @@ class GetCookies(View):
                     ]
                 )
 
-                support_email = completion.choices[0].message
+                danger_level = completion.choices[0].message
 
-                newData = CookieData(user=user, name=name,date_visited=local_dt, visit_count=visitCount, image=iconUrl, cookie_num=len(cookies), value=json_data)
+                newData = CookieData(user=user, name=name,date_visited=local_dt, visit_count=visitCount, image=iconUrl, cookie_num=len(cookies), value=json_data, status=danger_level)
                 user.save()
                 newData.save()
             # Return a JSON response
@@ -170,7 +172,7 @@ class GetCookies(View):
           print(e)
           return JsonResponse({"status": "error", "message": str(e)}, status=500)
 
-    def get(self, request, format=None):
+    def get(self, request):
         auth_header = request.headers.get('Authorization')
         if auth_header:
             try:
@@ -210,34 +212,65 @@ class SendEmail(View):
         # recipient = request.POST.get('recipient')
 
         body = json.loads(request.body.decode('utf-8'))
+        user_name = body.get("username")
         cookie_id = CookieData.objects.get(id=body.get("id"))
         google_id = cookie_id.user_id
         user = CustomUserModel.objects.get(google_id=google_id)
 
         client = OpenAI(api_key="")
-
+        print(cookie_id.name)
         completion = client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[
                 {"role": "system", "content": "You are a helpful assistant."},
                 {
                     "role": "user",
-                    "content": f"what is customer service for {cookie_id.name}. provide one email nothing else."
+                    "content": f"""
+                    Provide the customer service email for {cookie_id.name}. 
+                    Respond with only the email address. Do not include any other text, explanations, or context.
+                      Only output the email in plain text."
+                    """
                 }
             ]
         )
 
-        support_email = completion.choices[0].message
+        support_email = completion.choices[0].message.content
+        print(support_email)
+        body = f"""
+        Dear {cookie_id.name[4:]} Team,
 
-        body =
+        We are reaching out to you with utmost urgency as we submit a CCPA request on behalf of our client, {user_name}, a California resident. It is imperative that you address the following requests in compliance with the California Consumer Privacy Act without delay.
+
+        In line with the CCPA, we respectfully request the following:
+        - Personal Information Access: Please provide a copy of all personal information collected about {user_name} over the past 12 months.
+        - Third-Party Disclosure: List all third parties with whom {user_name}'s personal information has been shared in the past 12 months.
+        - Business Purposes: Describe the business or commercial purposes for which {user_name}'s personal information was collected or sold.
+        - Information Sales: Detail the categories of personal information sold about {{YOUR_NAME}} in the last 12 months and identify the categories of third parties to whom the information was sold.
+
+        Additionally, we request that you:
+        - Delete Personal Information: Remove all personal information related to {user_name} from your records.
+        - Cease Information Sales: Stop selling {user_name}'s personal information to any third parties.
+        - Confirmation: Notify us once these actions have been completed.
+
+        We appreciate your cooperation and ask that you provide the requested information and confirmation of these actions within 45 days of this request, as required by the CCPA.
+
+        Thank you for your prompt attention to this matter.
+
+        Sincerely,
+        Achilles
+        """
+
         recipient = support_email
         subject = "Action Required- CCPA Request for Personal Information and Opt-Out"
         send_gmail(user, recipient, subject, body)
-        new_email = Email(user=user, recipient=recipient, subject=subject, body=body)
-        new_email.save()
-        user.email_sent = user.email_sent + 1
-        user.save()
-        return JsonResponse({"status": "success", "message": "PUT request received"})
+        if send_gmail != None:
+            new_email = Email(user=user, recipient=recipient, subject=subject, body=body)
+            new_email.save()
+            cookie_id.is_active = False
+            cookie_id.save()
+            return JsonResponse({"status": "success", "message": "PUT request received"})
+        else:
+            return JsonResponse({"status": "Error", "message": "PUT request received. Issue with email"})
 
     def get(self, request, format=None):
         auth_header = request.headers.get('Authorization')
@@ -322,3 +355,26 @@ class UserInfo(View):
         len_email = len(emails)
         dictionary = {"cookie_num": user.cookies_num, "company_num": user.companies_num, "email_sent": len_email, "danger": final_output}
         return JsonResponse({"data": dictionary,"status": "success", "message": "GET request received"})
+    
+
+
+@method_decorator(csrf_exempt, name="dispatch")
+class ResyncHistory(View):
+    def post(self, request, format=None):
+        try:
+            body = json.loads(request.body.decode('utf-8'))
+            user_name = body.get("username")
+            if user_name and user_name == 'desired_username':
+                    # Respond with success if condition is met
+                response_data = {
+                    'message': 'Condition met. Data processed successfully!',
+                    'username': user_name
+                }
+                return JsonResponse(response_data)
+            else:
+                # Respond with an error if condition is not met
+                return HttpResponseBadRequest('Invalid username or condition not met')
+
+        except Exception as e:
+            # Handle other potential errors
+            return JsonResponse({'error': str(e)}, status=500)

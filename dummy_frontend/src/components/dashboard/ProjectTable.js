@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { Card, CardBody, CardTitle, CardSubtitle, Table, Button } from "reactstrap";
 import axios from "axios";
 import { useSession } from "next-auth/react";
@@ -38,7 +39,7 @@ const ProjectTables = () => {
   const [tableData, setTableData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [email, setEmail] = useState(null);
+  const [sesh, setSession] = useState(null);
   const { data: session, status } = useSession();
   console.log(status);
   useEffect(() => {
@@ -76,7 +77,7 @@ const ProjectTables = () => {
         // Process the received data and update tableData
 
         setTableData(receivedData);
-        setEmail(session.user.email);
+        setSession(session);
         setLoading(false);
       } catch(error) {
         console.error("Error fetching the data:", error);
@@ -98,22 +99,39 @@ const ProjectTables = () => {
     );
     const data = await response1.json();
     console.log("CSRF Token: ", data.csrfToken);
-    console.log(email);
+    console.log(sesh.user.email);
     const response = await axios.post(
       "http://127.0.0.1:8000/api/sendEmail",
       {
-        "id": id
+        "id": id,
+        "username": sesh.user.name
       },
       {
         headers: {
           'X-CSRFToken': data.csrfToken,
-          'Authorization': `Bearer ${email}`,
+          'Authorization': `Bearer ${sesh.user.email}`,
         },
         withCredentials: true
       }
     );
   };
 
+  const buttonStyle = {
+    backgroundColor: 'blue',
+    color: 'white',
+    padding: '10px 20px',
+    borderRadius: '5px',
+    border: 'none',
+    cursor: 'pointer',
+    textDecoration: 'none',
+  };
+  
+  // Link styles to make the <Link> look like regular text
+  const linkStyle = {
+    color: '#fff', // Inherits color from the parent <button>
+    textDecoration: 'none', // Removes underline
+    display: 'inline-block',
+  };
 
   if (loading) return <p>Loading...</p>;
   if (error) return <p>{error}</p>;
@@ -134,6 +152,7 @@ const ProjectTables = () => {
                 <th>Status</th>
                 <th>Date Visited</th>
                 <th>Send Email</th>
+                <th>Learn More</th>
               </tr>
             </thead>
             <tbody>
@@ -171,6 +190,13 @@ const ProjectTables = () => {
                     <Button color="primary" variant="shadow" onClick={() => sendEmail(tdata.id)}>
                       Send Email
                     </Button> 
+                  </td>
+                  <td>
+                  <button style={buttonStyle}>
+                    <Link href={`/learn-more/${tdata.id}`} style={linkStyle}>
+                      See Details
+                    </Link>
+                  </button>
                   </td>
                 </tr>
               ))}

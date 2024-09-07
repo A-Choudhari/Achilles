@@ -69,7 +69,7 @@ export const authOptions = {
      async session({ session, token }) {
   //     session.accessToken = token.accessToken;
        session.user.id = token.sub;
-      //  console.log("Session: ", session);
+       console.log("Session: ", session);
        return session;
      },
    },

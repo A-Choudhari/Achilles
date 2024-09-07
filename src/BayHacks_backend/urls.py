@@ -6,7 +6,7 @@ from dj_rest_auth.views import LoginView, LogoutView, UserDetailsView
 from django.urls import path
 from rest_framework_simplejwt.views import TokenVerifyView
 from allauth.socialaccount.views import signup
-from .views import GoogleLoginView, GoogleLoginView2, GetCookies, CSRF_Token, SendEmail, UserInfo
+from .views import GoogleLoginView, GoogleLoginView2, GetCookies, CSRF_Token, SendEmail, UserInfo, ResyncHistory
 
 urlpatterns = [
     path("register/", RegisterView.as_view(), name="rest_register"),
@@ -21,4 +21,5 @@ urlpatterns = [
     path("csrf_token", CSRF_Token.as_view(), name="csrf_token"),
     path("sendEmail", SendEmail.as_view(), name="sendEmail"),
     path("getUserinfo", UserInfo.as_view(), name="getUserinfo"),
+    path("resyncHistory", ResyncHistory.as_view(), name="getUserinfo"),
 ]

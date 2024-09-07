@@ -1,0 +1,37 @@
+{
+    "manifest_version": 3,
+    "name": "Achilles",
+    "version": "1.0",
+    "permissions": [
+      "tabs",
+      "history",
+      "cookies",
+      "storage",
+      "identity",
+      "identity.email",
+      "alarms",
+      "activeTab"
+    ],
+    "icons": {
+      "16": "icon_logo.png",
+      "48": "icon_logo.png",
+      "128": "icon_logo.png"
+    },
+    "background": {
+      "service_worker": "background.js"
+    },
+    "action": {
+      "default_popup": "popout.html"
+    },
+    "oauth2": {
+      "client_id": "992172634340-4kf6mrkeucnn7isocba3qhkb1q3a0r22.apps.googleusercontent.com",
+      "scopes": [
+        "profile",
+        "email"
+      ]
+    },
+    "host_permissions": [
+      "<all_urls>"
+    ]
+  }
+  

@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cookie Monitor</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 10px;
+            min-width: 300px;
+        }
+        h1 {
+            font-size: 20px;
+            margin-bottom: 10px;
+        }
+        button {
+            padding: 10px 15px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        #status {
+            margin-top: 10px;
+            font-size: 14px;
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+    <h1>Cookie Monitor</h1>
+    <button id="checkCookies">Check Cookies</button>
+    <textarea style="width:300px;height: 300px;" id="fillData"></textarea>
+    <div id="status"></div>
+
+    <!-- Link to the external JavaScript file -->
+    <script src="popup.js"></script>
+</body>
+</html>

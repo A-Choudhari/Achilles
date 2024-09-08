@@ -10,6 +10,7 @@ import user2 from "../../assets/images/users/user2.jpg";
 import user3 from "../../assets/images/users/user3.jpg";
 import user4 from "../../assets/images/users/user4.jpg";
 import user5 from "../../assets/images/users/user5.jpg";
+import ModalComponent from "../ModalComponent";
 // import {Button, ButtonGroup} from "@nextui-org/button";
 
 // Define placeholder table data
@@ -41,6 +42,10 @@ const ProjectTables = () => {
   const [error, setError] = useState(null);
   const [sesh, setSession] = useState(null);
   const { data: session, status } = useSession();
+  const [showModal, setShowModal] = useState(false);
+
+  const handleShow = () => setShowModal(true);
+  const handleClose = () => setShowModal(false)
   console.log(status);
   useEffect(() => {
     const fetchData = async () => {
@@ -152,7 +157,6 @@ const ProjectTables = () => {
                 <th>Status</th>
                 <th>Date Visited</th>
                 <th>Send Email</th>
-                <th>Learn More</th>
               </tr>
             </thead>
             <tbody>
@@ -177,9 +181,9 @@ const ProjectTables = () => {
                   </td>
                   <td>{tdata.cookie_num}</td>
                   <td>
-                    {tdata.status === "pending" ? (
+                    {tdata.status === "High" ? (
                       <span className="p-2 bg-danger rounded-circle d-inline-block ms-3" />
-                    ) : tdata.status === "holt" ? (
+                    ) : tdata.status === "Medium" ? (
                       <span className="p-2 bg-warning rounded-circle d-inline-block ms-3" />
                     ) : (
                       <span className="p-2 bg-success rounded-circle d-inline-block ms-3" />
@@ -190,13 +194,6 @@ const ProjectTables = () => {
                     <Button color="primary" variant="shadow" onClick={() => sendEmail(tdata.id)}>
                       Send Email
                     </Button> 
-                  </td>
-                  <td>
-                  <button style={buttonStyle}>
-                    <Link href={`/learn-more/${tdata.id}`} style={linkStyle}>
-                      See Details
-                    </Link>
-                  </button>
                   </td>
                 </tr>
               ))}

@@ -22,4 +22,5 @@ urlpatterns = [
     path("sendEmail", SendEmail.as_view(), name="sendEmail"),
     path("getUserinfo", UserInfo.as_view(), name="getUserinfo"),
     path("resyncHistory", ResyncHistory.as_view(), name="getUserinfo"),
+    # path("loadInfo", LoadInfo.as_view(), "loadInfo")
 ]

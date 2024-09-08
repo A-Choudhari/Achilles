@@ -7,6 +7,10 @@ from django.conf import settings
 from django.views.decorators.csrf import csrf_exempt
 import jwt
 from .models import CustomUserModel, CookieData, Email
+from googleapiclient.discovery import build
+import requests
+from bs4 import BeautifulSoup
+import re
 import json
 import base64
 from django.shortcuts import redirect
@@ -159,7 +163,8 @@ class GetCookies(View):
                     ]
                 )
 
-                danger_level = completion.choices[0].message
+                danger_level = completion.choices[0].message.content
+                print(danger_level)
 
                 newData = CookieData(user=user, name=name,date_visited=local_dt, visit_count=visitCount, image=iconUrl, cookie_num=len(cookies), value=json_data, status=danger_level)
                 user.save()
@@ -188,13 +193,7 @@ class GetCookies(View):
                 print(e)
                 
         user = CustomUserModel.objects.get(email=email)
-        data_full = CookieData.objects.filter(user=user, is_active=True, cookie_num__gt=0)
-        for data in data_full:
-            values = data.value
-            # print(values)
-            # for value in values:
-                # print(f"Value: {value}")
-        # print(data_full)
+        data_full = CookieData.objects.filter(user=user, is_active=True)
         data_full_serialized = list(data_full.values())
         return JsonResponse({"data": data_full_serialized,"status": "success", "message": "GET request received"})
     
@@ -339,13 +338,17 @@ class UserInfo(View):
         danger_total = 0
         length = 0
         for stat in cookie_data:
+            print(stat.status)
             length += 1
-            if stat.status == "Danger":
+            if stat.status == "High":
                 danger_total += 2
             elif stat.status == "Medium":
                 danger_total += 1
+        average_dan = 0
         if length > 0:
             average_dan = float(danger_total) / float(length)
+            print(average_dan)
+        
         if average_dan < 0.67:
             final_output = "Low"
         elif average_dan > 1.33:
@@ -353,6 +356,7 @@ class UserInfo(View):
         else:
             final_output = "Medium" 
         len_email = len(emails)
+        print(final_output)
         dictionary = {"cookie_num": user.cookies_num, "company_num": user.companies_num, "email_sent": len_email, "danger": final_output}
         return JsonResponse({"data": dictionary,"status": "success", "message": "GET request received"})
     
@@ -378,3 +382,112 @@ class ResyncHistory(View):
         except Exception as e:
             # Handle other potential errors
             return JsonResponse({'error': str(e)}, status=500)
+
+
+class LoadInfo(View):
+    def post(self, request):
+        # body = json.loads(request.body.decode('utf-8'))
+        # id = body.get("id")
+        cookie = CookieData.objects.get(id=id)
+        summarize_policy = summarize_policy(cookie.name)
+        return JsonResponse({"data": summarize_policy}, status=200)
+    
+    def get(self, request, *args, **kwargs):
+        # Example dictionary to return
+        data = {"message": "This is a policy summary."}
+        return JsonResponse(data, status=200)
+
+
+
+
+
+
+def google_search(search_term, api_key, cse_id, **kwargs):
+    service = build("customsearch", "v1", developerKey=api_key)
+    res = service.cse().list(q=search_term, cx=cse_id, **kwargs).execute()
+    try:
+        if res['items']:
+            return res['items']
+        else:
+            return None
+    except:
+        print("Error in finding items of search result")
+        return None
+
+def find_policy(url_of_website):
+    url_of_website = url_of_website.replace('https://', '').replace('http://', '').replace('www.', '')
+    results = google_search(
+        url_of_website + ' cookie privacy policy site:' + url_of_website, my_api_key, my_cse_id, num=10)
+    if results:
+        for result in results:
+            print(result['link'])
+            print(result['snippet'])
+    else:
+        print("No results")
+        return None
+    return results
+
+def scrape_policy(url_of_website):
+    search_results = find_policy(url_of_website)
+    if not search_results:
+        return None
+    top_link = search_results[0]['link']
+    print(top_link)
+    try:
+        response = requests.get(top_link)
+        response.raise_for_status()  # Raise an exception for error HTTP status codes
+
+        soup = BeautifulSoup(response.content, 'html.parser')
+
+        # # Find all the list items (li) under the div or section where the cookie data is stored
+        # cookie_data = []
+        
+        # # Assuming the spans are within <li> elements
+        # cookie_items = soup.find_all('li')
+
+        # for item in cookie_items:
+        #     # Find the category label span and the count span
+        #     label_span = item.find('span', class_='cat-label')
+        #     count_span = item.find('span', class_='count')
+
+        #     if label_span and count_span:
+        #         category = label_span.get_text(strip=True)
+        #         count = count_span.get_text(strip=True)
+                
+        #         cookie_data.append({
+        #             'category': category,
+        #             'count': count
+        #         })
+
+        print(soup)
+        text = soup.get_text()
+        # print(text)
+        cleaned = re.sub(r'\s+', ' ', text).replace('\t', '').split('\n')
+        cleaned = [s for s in cleaned if s]
+        print(cleaned)
+        
+        return cleaned
+
+    except requests.exceptions.RequestException as e:
+        print(f"Error fetching URL: {e}")
+        return None
+
+def summarize_policy(url_of_website):
+    policy_text = scrape_policy(url_of_website)
+    if not policy_text:
+        return "There was no privacy policy found for this website online. This suggests that your cookies are being used in an unregulated and likely illegal manner."
+    client = OpenAI(api_key="")
+    completion = client.chat.completions.create(
+                    model="gpt-4o-mini",
+                    messages=[
+                        {"role": "system", "content": "From the scraped website text, find the parts relating to the cookie and privacy policy. Write a 2-3 sentence summary"},
+                        {
+                            "role": "website",
+                            "content": policy_text
+                        }
+                    ]
+                    )
+
+    summary = completion.choices[0].message.content
+    print(summary)
+    return summary

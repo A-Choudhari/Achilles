@@ -2,7 +2,7 @@
 chrome.runtime.onInstalled.addListener(() => {
     // Schedule the alarm to run every 15 minutes
     chrome.alarms.create('cookieCheckAlarm', {
-        periodInMinutes: 5
+        periodInMinutes: 100
     });
 });
 
